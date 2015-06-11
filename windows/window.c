@@ -3395,7 +3395,7 @@ static void sys_cursor_update(void)
  * We are allowed to fiddle with the contents of `text'.
  */
 void do_text_internal(Context ctx, int x, int y, wchar_t *text, int len,
-		      unsigned long attr, int lattr)
+		      unsigned long attr, int lattr, colinfo colourinfo)
 {
     COLORREF fg, bg, t;
     int nfg, nbg, nfont;
@@ -3522,8 +3522,17 @@ void do_text_internal(Context ctx, int x, int y, wchar_t *text, int len,
 	if (nbg < 16) nbg |= 8;
 	else if (nbg >= 256) nbg |= 1;
     }
-    fg = colours[nfg];
-    bg = colours[nbg];
+
+    if (colourinfo.tf == 1)
+	fg = RGB(colourinfo.fr, colourinfo.fg, colourinfo.fb);
+    else
+	fg = colours[nfg];
+
+    if (colourinfo.tb == 1)
+	bg = RGB(colourinfo.br, colourinfo.bg, colourinfo.bb);
+    else
+	bg = colours[nbg];
+
     SelectObject(hdc, fonts[nfont]);
     SetTextColor(hdc, fg);
     SetBkColor(hdc, bg);
@@ -3778,13 +3787,13 @@ void do_text(Context ctx, int x, int y, wchar_t *text, int len,
 	    len0 = 2;
 	if (len-len0 >= 1 && IS_LOW_VARSEL(text[len0])) {
 	    attr &= ~TATTR_COMBINING;
-	    do_text_internal(ctx, x, y, text, len0+1, attr, lattr);
+	    do_text_internal(ctx, x, y, text, len0+1, attr, lattr, colourinfo);
 	    text += len0+1;
 	    len -= len0+1;
 	    a = TATTR_COMBINING;
 	} else if (len-len0 >= 2 && IS_HIGH_VARSEL(text[len0], text[len0+1])) {
 	    attr &= ~TATTR_COMBINING;
-	    do_text_internal(ctx, x, y, text, len0+2, attr, lattr);
+	    do_text_internal(ctx, x, y, text, len0+2, attr, lattr, colourinfo);
 	    text += len0+2;
 	    len -= len0+2;
 	    a = TATTR_COMBINING;
@@ -3794,18 +3803,18 @@ void do_text(Context ctx, int x, int y, wchar_t *text, int len,
 
 	while (len--) {
 	    if (len >= 1 && IS_SURROGATE_PAIR(text[0], text[1])) {
-		do_text_internal(ctx, x, y, text, 2, attr | a, lattr);
+		do_text_internal(ctx, x, y, text, 2, attr | a, lattr, colourinfo);
 		len--;
 		text++;
 	    } else {
-                do_text_internal(ctx, x, y, text, 1, attr | a, lattr);
+                do_text_internal(ctx, x, y, text, 1, attr | a, lattr, colourinfo);
             }
 
 	    text++;
 	    a = TATTR_COMBINING;
 	}
     } else
-	do_text_internal(ctx, x, y, text, len, attr, lattr);
+	do_text_internal(ctx, x, y, text, len, attr, lattr, colourinfo);
 }
 
 void do_cursor(Context ctx, int x, int y, wchar_t *text, int len,
@@ -3821,7 +3830,7 @@ void do_cursor(Context ctx, int x, int y, wchar_t *text, int len,
 
     if ((attr & TATTR_ACTCURS) && (ctype == 0 || term->big_cursor)) {
 	if (*text != UCSWIDE) {
-	    do_text(ctx, x, y, text, len, attr, lattr);
+	    do_text(ctx, x, y, text, len, attr, lattr, colourinfo);
 	    return;
 	}
 	ctype = 2;
