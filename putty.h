@@ -606,8 +606,8 @@ typedef struct colinfo {
     unsigned char bg;
     unsigned char bb;
 } colinfo;
-void do_text(Context, int, int, wchar_t *, int, unsigned long, int);
-void do_cursor(Context, int, int, wchar_t *, int, unsigned long, int);
+void do_text(Context, int, int, wchar_t *, int, unsigned long, int, colinfo);
+void do_cursor(Context, int, int, wchar_t *, int, unsigned long, int, colinfo);
 int char_width(Context ctx, int uc);
 #ifdef OPTIMISE_SCROLL
 void do_scroll(Context, int, int, int);

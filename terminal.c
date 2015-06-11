@@ -5052,6 +5052,7 @@ static void do_paint(Terminal *term, Context ctx, int may_optimise)
 	 */
 	for (j = 0; j < term->cols; j++) {
 	    unsigned long tattr, tchar;
+	    colinfo colourinfo;
 	    termchar *d = lchars + j;
 	    scrpos.x = backward ? backward[j] : j;
 
@@ -5179,6 +5180,7 @@ static void do_paint(Terminal *term, Context ctx, int may_optimise)
 				  term->disptext[i]->lattr);
 	term->disptext[i]->lattr = ldata->lattr;
 
+	colinfo colourinfo;
 	for (j = 0; j < term->cols; j++) {
 	    unsigned long tattr, tchar;
 	    int break_run, do_copy;
@@ -5225,10 +5227,10 @@ static void do_paint(Terminal *term, Context ctx, int may_optimise)
 	    if (break_run) {
 		if ((dirty_run || last_run_dirty) && ccount > 0) {
 		    do_text(ctx, start, i, ch, ccount, attr,
-			    ldata->lattr);
+			    ldata->lattr, colourinfo);
 		    if (attr & (TATTR_ACTCURS | TATTR_PASCURS))
 			do_cursor(ctx, start, i, ch, ccount, attr,
-				  ldata->lattr);
+				  ldata->lattr, colourinfo);
 		}
 		start = j;
 		ccount = 0;
@@ -5323,10 +5325,10 @@ static void do_paint(Terminal *term, Context ctx, int may_optimise)
 	}
 	if (dirty_run && ccount > 0) {
 	    do_text(ctx, start, i, ch, ccount, attr,
-		    ldata->lattr);
+		    ldata->lattr, colourinfo);
 	    if (attr & (TATTR_ACTCURS | TATTR_PASCURS))
 		do_cursor(ctx, start, i, ch, ccount, attr,
-			  ldata->lattr);
+			  ldata->lattr, colourinfo);
 	}
 
 	unlineptr(ldata);
