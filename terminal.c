@@ -3868,6 +3868,7 @@ static void term_out(Terminal *term)
 				switch (def(term->esc_args[i], 0)) {
 				  case 0:	/* restore defaults */
 				    term->curr_attr = term->default_attr;
+				    term->curr_colourinfo = term->basic_erase_char.colourinfo;
 				    break;
 				  case 1:	/* enable bold */
 				    compatibility(VT100AVO);
@@ -3929,6 +3930,7 @@ static void term_out(Terminal *term)
 				  case 36:
 				  case 37:
 				    /* foreground */
+				    term->curr_colourinfo.tf = 0;
 				    term->curr_attr &= ~ATTR_FGMASK;
 				    term->curr_attr |=
 					(term->esc_args[i] - 30)<<ATTR_FGSHIFT;
@@ -3960,6 +3962,7 @@ static void term_out(Terminal *term)
 				  case 46:
 				  case 47:
 				    /* background */
+				    term->curr_colourinfo.tb = 0;
 				    term->curr_attr &= ~ATTR_BGMASK;
 				    term->curr_attr |=
 					(term->esc_args[i] - 40)<<ATTR_BGSHIFT;
@@ -3991,6 +3994,14 @@ static void term_out(Terminal *term)
 					     << ATTR_FGSHIFT);
 					i += 2;
 				    }
+				    if (i+4 < term->esc_nargs &&
+					term->esc_args[i+1] == 2) {
+					term->curr_colourinfo.tf = 1;
+					term->curr_colourinfo.fr = term->esc_args[i+2];
+					term->curr_colourinfo.fg = term->esc_args[i+3];
+					term->curr_colourinfo.fb = term->esc_args[i+4];
+					i += 4;
+				    }
 				    break;
 				  case 48:   /* xterm 256-colour mode */
 				    if (i+2 < term->esc_nargs &&
@@ -4000,6 +4011,14 @@ static void term_out(Terminal *term)
 					    ((term->esc_args[i+2] & 0xFF)
 					     << ATTR_BGSHIFT);
 					i += 2;
+				    }
+				    if (i+4 < term->esc_nargs &&
+					term->esc_args[i+1] == 2) {
+					term->curr_colourinfo.tb = 1;
+					term->curr_colourinfo.br = term->esc_args[i+2];
+					term->curr_colourinfo.bg = term->esc_args[i+3];
+					term->curr_colourinfo.bb = term->esc_args[i+4];
+					i += 4;
 				    }
 				    break;
 				}
