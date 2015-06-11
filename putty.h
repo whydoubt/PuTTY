@@ -596,6 +596,16 @@ void free_prompts(prompts_t *p);
  * Exports from the front end.
  */
 void request_resize(void *frontend, int, int);
+typedef struct colinfo {
+    unsigned char tf;
+    unsigned char tb;
+    unsigned char fr;
+    unsigned char fg;
+    unsigned char fb;
+    unsigned char br;
+    unsigned char bg;
+    unsigned char bb;
+} colinfo;
 void do_text(Context, int, int, wchar_t *, int, unsigned long, int);
 void do_cursor(Context, int, int, wchar_t *, int, unsigned long, int);
 int char_width(Context ctx, int uc);
