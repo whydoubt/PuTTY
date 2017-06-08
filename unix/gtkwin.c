@@ -3029,6 +3029,28 @@ static void draw_set_colour(struct draw_ctx *dctx, int col)
 #endif
 }
 
+static void draw_set_rgb(struct draw_ctx *dctx, unsigned char red,
+			 unsigned char green, unsigned char blue)
+{
+#ifdef DRAW_TEXT_GDK
+    if (dctx->uctx.type == DRAWTYPE_GDK) {
+        GdkColor color;
+        color.red = red * 257;
+        color.green = green * 257;
+        color.blue = blue * 257;
+        gdk_gc_set_rgb_fg_color(dctx->uctx.u.gdk.gc, &color);
+    }
+#endif
+#ifdef DRAW_TEXT_CAIRO
+    if (dctx->uctx.type == DRAWTYPE_CAIRO) {
+        cairo_set_source_rgb(dctx->uctx.u.cairo.cr,
+                             red / 255.0,
+                             green / 255.0,
+                             blue / 255.0);
+    }
+#endif
+}
+
 static void draw_rectangle(struct draw_ctx *dctx, int filled,
                            int x, int y, int w, int h)
 {
@@ -3222,7 +3244,7 @@ static void draw_backing_rect(struct gui_data *inst)
  * We are allowed to fiddle with the contents of `text'.
  */
 void do_text_internal(Context ctx, int x, int y, wchar_t *text, int len,
-		      unsigned long attr, int lattr)
+		      unsigned long attr, int lattr, colinfo colourinfo)
 {
     struct draw_ctx *dctx = (struct draw_ctx *)ctx;
     struct gui_data *inst = dctx->inst;
@@ -3230,6 +3252,7 @@ void do_text_internal(Context ctx, int x, int y, wchar_t *text, int len,
     int nfg, nbg, t, fontid, shadow, rlen, widefactor, bold;
     int monochrome =
         gdk_visual_get_depth(gtk_widget_get_visual(inst->area)) == 1;
+    unsigned char byte;
 
     if (attr & TATTR_COMBINING) {
 	ncombining = len;
@@ -3243,6 +3266,19 @@ void do_text_internal(Context ctx, int x, int y, wchar_t *text, int len,
 	t = nfg;
 	nfg = nbg;
 	nbg = t;
+
+	byte = colourinfo.tf;
+	colourinfo.tf = colourinfo.tb;
+	colourinfo.tb = byte;
+	byte = colourinfo.fr;
+	colourinfo.fr = colourinfo.br;
+	colourinfo.br = byte;
+	byte = colourinfo.fg;
+	colourinfo.fg = colourinfo.bg;
+	colourinfo.bg = byte;
+	byte = colourinfo.fb;
+	colourinfo.fb = colourinfo.bb;
+	colourinfo.bb = byte;
     }
     if ((inst->bold_style & 2) && (attr & ATTR_BOLD)) {
 	if (nfg < 16) nfg |= 8;
@@ -3255,6 +3291,8 @@ void do_text_internal(Context ctx, int x, int y, wchar_t *text, int len,
     if ((attr & TATTR_ACTCURS) && !monochrome) {
 	nfg = 260;
 	nbg = 261;
+	colourinfo.tf = 0;
+	colourinfo.tb = 0;
     }
 
     fontid = shadow = 0;
@@ -3316,13 +3354,21 @@ void do_text_internal(Context ctx, int x, int y, wchar_t *text, int len,
                             ((lattr & LATTR_MODE) == LATTR_BOT));
     }
 
-    draw_set_colour(dctx, nbg);
+    if (colourinfo.tb == 1)
+	draw_set_rgb(dctx, colourinfo.br, colourinfo.bg, colourinfo.bb);
+    else
+	draw_set_colour(dctx, nbg);
+
     draw_rectangle(dctx, TRUE,
                    x*inst->font_width+inst->window_border,
                    y*inst->font_height+inst->window_border,
                    rlen*widefactor*inst->font_width, inst->font_height);
 
-    draw_set_colour(dctx, nfg);
+    if (colourinfo.tf == 1)
+	draw_set_rgb(dctx, colourinfo.fr, colourinfo.fg, colourinfo.fb);
+    else
+	draw_set_colour(dctx, nfg);
+
     if (ncombining > 1) {
         assert(len == 1);
         unifont_draw_combining(&dctx->uctx, inst->fonts[fontid],
@@ -3368,7 +3414,7 @@ void do_text(Context ctx, int x, int y, wchar_t *text, int len,
     struct gui_data *inst = dctx->inst;
     int widefactor;
 
-    do_text_internal(ctx, x, y, text, len, attr, lattr);
+    do_text_internal(ctx, x, y, text, len, attr, lattr, colourinfo);
 
     if (attr & ATTR_WIDE) {
 	widefactor = 2;
@@ -3409,7 +3455,7 @@ void do_cursor(Context ctx, int x, int y, wchar_t *text, int len,
         active = 1;
     } else
         active = 0;
-    do_text_internal(ctx, x, y, text, len, attr, lattr);
+    do_text_internal(ctx, x, y, text, len, attr, lattr, colourinfo);
 
     if (attr & TATTR_COMBINING)
 	len = 1;
