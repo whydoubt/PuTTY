@@ -1478,6 +1478,7 @@ void term_copy_stuff_from_conf(Terminal *term)
     term->scroll_on_disp = conf_get_int(term->conf, CONF_scroll_on_disp);
     term->scroll_on_key = conf_get_int(term->conf, CONF_scroll_on_key);
     term->xterm_256_colour = conf_get_int(term->conf, CONF_xterm_256_colour);
+    term->true_colour = conf_get_int(term->conf, CONF_true_colour);
 
     /*
      * Parse the control-character escapes in the configured
@@ -5164,6 +5165,9 @@ static void do_paint(Terminal *term, Context ctx, int may_optimise)
 		if (colour >= 16 && colour < 256)
 		    tattr = (tattr &~ ATTR_BGMASK) | ATTR_DEFBG;
 	    }
+
+	    if (!term->true_colour)
+		tcolourinfo = COLINFO_DEFAULT;
 
 	    switch (tchar & CSET_MASK) {
 	      case CSET_ASCII:
