@@ -1549,6 +1549,14 @@ If you do not see \cq{colors#256} in the output, you may need to
 change your terminal setting. On modern Linux machines, you could
 try \cq{xterm-256color}.
 
+\S{config-truecolour} \q{Allow terminal to use \i{true-colour (24-bit) mode}}
+
+\cfg{winhelp-topic}{colours.truecolour}
+
+This option is enabled by default. If it is disabled, PuTTY will
+ignore any control sequences sent by the server which use
+true-colour mode.
+
 \S{config-boldcolour} \q{Indicate bolded text by changing...}
 
 \cfg{winhelp-topic}{colours.bold}

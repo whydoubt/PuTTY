@@ -1527,6 +1527,7 @@ void term_copy_stuff_from_conf(Terminal *term)
     term->scroll_on_disp = conf_get_int(term->conf, CONF_scroll_on_disp);
     term->scroll_on_key = conf_get_int(term->conf, CONF_scroll_on_key);
     term->xterm_256_colour = conf_get_int(term->conf, CONF_xterm_256_colour);
+    term->true_colour = conf_get_int(term->conf, CONF_true_colour);
 
     /*
      * Parse the control-character escapes in the configured
@@ -5301,7 +5302,7 @@ static void do_paint(Terminal *term, Context ctx, int may_optimise)
 	    tattr = d->attr;
 
 #ifndef COMBI_COLOUR
-            if (term->ansi_colour && term->xterm_256_colour) {
+            if (term->ansi_colour && term->xterm_256_colour && term->true_colour) {
 		tfg_col = d->fg_colour;
 		tbg_col = d->bg_colour;
 	    } else
