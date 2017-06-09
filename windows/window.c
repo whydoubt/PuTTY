@@ -3411,6 +3411,7 @@ void do_text_internal(Context ctx, int x, int y, wchar_t *text, int len,
     static int lpDx_len = 0;
     int *lpDx_maybe;
     int len2; /* for SURROGATE PAIR */
+    unsigned char byte;
 
     lattr &= LATTR_MODE;
 
@@ -3513,6 +3514,19 @@ void do_text_internal(Context ctx, int x, int y, wchar_t *text, int len,
 	t = nfg;
 	nfg = nbg;
 	nbg = t;
+
+	byte = colourinfo.tf;
+	colourinfo.tf = colourinfo.tb;
+	colourinfo.tb = byte;
+	byte = colourinfo.fr;
+	colourinfo.fr = colourinfo.br;
+	colourinfo.br = byte;
+	byte = colourinfo.fg;
+	colourinfo.fg = colourinfo.bg;
+	colourinfo.bg = byte;
+	byte = colourinfo.fb;
+	colourinfo.fb = colourinfo.bb;
+	colourinfo.bb = byte;
     }
     if (bold_colours && (attr & ATTR_BOLD) && !is_cursor) {
 	if (nfg < 16) nfg |= 8;
