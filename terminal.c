@@ -282,22 +282,31 @@ static void clear_cc(termline *line, int col)
  * fields to be.
  */
 static int termchars_equal_override(termchar *a, termchar *b,
-				    unsigned long bchr, unsigned long battr)
+				    unsigned long bchr, unsigned long battr,
+				    colinfo bcolourinfo)
 {
     /* FULL-TERMCHAR */
     if (a->chr != bchr)
 	return FALSE;
     if ((a->attr &~ DATTR_MASK) != (battr &~ DATTR_MASK))
 	return FALSE;
-    if (a->colourinfo.tf != b->colourinfo.tf ||
-	a->colourinfo.tb != b->colourinfo.tb ||
-	a->colourinfo.fr != b->colourinfo.fr ||
-	a->colourinfo.fg != b->colourinfo.fg ||
-	a->colourinfo.fb != b->colourinfo.fb ||
-	a->colourinfo.br != b->colourinfo.br ||
-	a->colourinfo.bg != b->colourinfo.bg ||
-	a->colourinfo.bb != b->colourinfo.bb)
+
+    if (a->colourinfo.tf != bcolourinfo.tf)
 	return FALSE;
+    else if ((a->colourinfo.tf == 1) &&
+	(a->colourinfo.fr != bcolourinfo.fr ||
+	 a->colourinfo.fg != bcolourinfo.fg ||
+	 a->colourinfo.fb != bcolourinfo.fb))
+	return FALSE;
+
+    if (a->colourinfo.tb != bcolourinfo.tb)
+	return FALSE;
+    else if ((a->colourinfo.tf == 1) &&
+	(a->colourinfo.br != bcolourinfo.br ||
+	 a->colourinfo.bg != bcolourinfo.bg ||
+	 a->colourinfo.bb != bcolourinfo.bb))
+	return FALSE;
+
     while (a->cc_next || b->cc_next) {
 	if (!a->cc_next || !b->cc_next)
 	    return FALSE;	       /* one cc-list ends, other does not */
@@ -311,7 +320,7 @@ static int termchars_equal_override(termchar *a, termchar *b,
 
 static int termchars_equal(termchar *a, termchar *b)
 {
-    return termchars_equal_override(a, b, b->chr, b->attr);
+    return termchars_equal_override(a, b, b->chr, b->attr, b->colourinfo);
 }
 
 /*
@@ -5279,14 +5288,20 @@ static void do_paint(Terminal *term, Context ctx, int may_optimise)
 
 	    break_run = ((tattr ^ attr) & term->attr_mask) != 0;
 
-	    if (newline[j].colourinfo.tf != colourinfo.tf ||
-		newline[j].colourinfo.tb != colourinfo.tb ||
-		newline[j].colourinfo.fr != colourinfo.fr ||
-		newline[j].colourinfo.fg != colourinfo.fg ||
-		newline[j].colourinfo.fb != colourinfo.fb ||
-		newline[j].colourinfo.br != colourinfo.br ||
-		newline[j].colourinfo.bg != colourinfo.bg ||
-		newline[j].colourinfo.bb != colourinfo.bb)
+	    if (tcolourinfo.tf != colourinfo.tf)
+		break_run = TRUE;
+	    else if ((tcolourinfo.tf == 1) &&
+		(tcolourinfo.fr != colourinfo.fr ||
+		 tcolourinfo.fg != colourinfo.fg ||
+		 tcolourinfo.fb != colourinfo.fb))
+		break_run = TRUE;
+
+	    if (tcolourinfo.tb != colourinfo.tb)
+		break_run = TRUE;
+	    else if ((tcolourinfo.tf == 1) &&
+		(tcolourinfo.br != colourinfo.br ||
+		 tcolourinfo.bg != colourinfo.bg ||
+		 tcolourinfo.bb != colourinfo.bb))
 		break_run = TRUE;
 
 #ifdef USES_VTLINE_HACK
@@ -5339,7 +5354,7 @@ static void do_paint(Terminal *term, Context ctx, int may_optimise)
 
 	    do_copy = FALSE;
 	    if (!termchars_equal_override(&term->disptext[i]->chars[j],
-					  d, tchar, tattr)) {
+					  d, tchar, tattr, tcolourinfo)) {
 		do_copy = TRUE;
 		dirty_run = TRUE;
 	    }
