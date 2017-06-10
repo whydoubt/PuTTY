@@ -103,7 +103,7 @@ struct terminal_tag {
 #endif /* OPTIMISE_SCROLL */
 
     int default_attr, curr_attr, save_attr;
-    colinfo curr_colourinfo;
+    colinfo curr_colourinfo, save_colourinfo;
 
     termchar basic_erase_char, erase_char;
 
@@ -141,6 +141,7 @@ struct terminal_tag {
     /* ESC 7 saved state for the alternate screen */
     pos alt_savecurs;
     int alt_save_attr;
+    colinfo alt_save_colourinfo;
     int alt_save_cset, alt_save_csattr;
     int alt_save_utf, alt_save_wnext;
     int alt_save_sco_acs;

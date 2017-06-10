@@ -1317,6 +1317,8 @@ static void power_on(Terminal *term, int clear)
     term->big_cursor = 0;
     term->default_attr = term->save_attr =
 	term->alt_save_attr = term->curr_attr = ATTR_DEFAULT;
+    term->save_colourinfo = term->alt_save_colourinfo =
+	term->curr_colourinfo = COLINFO_DEFAULT;
     term->term_editing = term->term_echoing = FALSE;
     term->app_cursor_keys = conf_get_int(term->conf, CONF_app_cursor);
     term->app_keypad_keys = conf_get_int(term->conf, CONF_app_keypad);
@@ -2001,6 +2003,7 @@ static int find_last_nonempty_line(Terminal * term, tree234 * screen)
 static void swap_screen(Terminal *term, int which, int reset, int keep_cur_pos)
 {
     int t;
+    colinfo tci;
     pos tp;
     tree234 *ttr;
 
@@ -2066,6 +2069,10 @@ static void swap_screen(Terminal *term, int which, int reset, int keep_cur_pos)
         if (!reset && !keep_cur_pos)
             term->save_attr = term->alt_save_attr;
         term->alt_save_attr = t;
+        tci = term->save_colourinfo;
+        if (!reset && !keep_cur_pos)
+            term->save_colourinfo = term->alt_save_colourinfo;
+        term->alt_save_colourinfo = tci;
         t = term->save_utf;
         if (!reset && !keep_cur_pos)
             term->save_utf = term->alt_save_utf;
@@ -2361,6 +2368,7 @@ static void save_cursor(Terminal *term, int save)
     if (save) {
 	term->savecurs = term->curs;
 	term->save_attr = term->curr_attr;
+	term->save_colourinfo = term->curr_colourinfo;
 	term->save_cset = term->cset;
 	term->save_utf = term->utf;
 	term->save_wnext = term->wrapnext;
@@ -2375,6 +2383,7 @@ static void save_cursor(Terminal *term, int save)
 	    term->curs.y = term->rows - 1;
 
 	term->curr_attr = term->save_attr;
+	term->curr_colourinfo = term->save_colourinfo;
 	term->cset = term->save_cset;
 	term->utf = term->save_utf;
 	term->wrapnext = term->save_wnext;
