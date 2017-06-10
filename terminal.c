@@ -3958,12 +3958,14 @@ static void term_out(Terminal *term)
 				  case 96:
 				  case 97:
 				    /* aixterm-style bright foreground */
+				    term->curr_colourinfo.tf = 0;
 				    term->curr_attr &= ~ATTR_FGMASK;
 				    term->curr_attr |=
 					((term->esc_args[i] - 90 + 8)
                                          << ATTR_FGSHIFT);
 				    break;
 				  case 39:	/* default-foreground */
+				    term->curr_colourinfo.tf = 0;
 				    term->curr_attr &= ~ATTR_FGMASK;
 				    term->curr_attr |= ATTR_DEFFG;
 				    break;
@@ -3990,18 +3992,21 @@ static void term_out(Terminal *term)
 				  case 106:
 				  case 107:
 				    /* aixterm-style bright background */
+				    term->curr_colourinfo.tb = 0;
 				    term->curr_attr &= ~ATTR_BGMASK;
 				    term->curr_attr |=
 					((term->esc_args[i] - 100 + 8)
                                          << ATTR_BGSHIFT);
 				    break;
 				  case 49:	/* default-background */
+				    term->curr_colourinfo.tb = 0;
 				    term->curr_attr &= ~ATTR_BGMASK;
 				    term->curr_attr |= ATTR_DEFBG;
 				    break;
 				  case 38:   /* xterm 256-colour mode */
 				    if (i+2 < term->esc_nargs &&
 					term->esc_args[i+1] == 5) {
+					term->curr_colourinfo.tf = 0;
 					term->curr_attr &= ~ATTR_FGMASK;
 					term->curr_attr |=
 					    ((term->esc_args[i+2] & 0xFF)
@@ -4020,6 +4025,7 @@ static void term_out(Terminal *term)
 				  case 48:   /* xterm 256-colour mode */
 				    if (i+2 < term->esc_nargs &&
 					term->esc_args[i+1] == 5) {
+					term->curr_colourinfo.tb = 0;
 					term->curr_attr &= ~ATTR_BGMASK;
 					term->curr_attr |=
 					    ((term->esc_args[i+2] & 0xFF)
@@ -4343,6 +4349,7 @@ static void term_out(Terminal *term)
  				(sco2ansicolour[term->esc_args[0] & 0x7] |
 				 (term->esc_args[0] & 0x8)) <<
 				ATTR_FGSHIFT;
+			    term->curr_colourinfo.tf = 0;
 			    term->curr_attr &= ~ATTR_FGMASK;
 			    term->curr_attr |= colour;
 			    term->default_attr &= ~ATTR_FGMASK;
@@ -4357,6 +4364,7 @@ static void term_out(Terminal *term)
  				(sco2ansicolour[term->esc_args[0] & 0x7] |
 				 (term->esc_args[0] & 0x8)) <<
 				ATTR_BGSHIFT;
+			    term->curr_colourinfo.tb = 0;
 			    term->curr_attr &= ~ATTR_BGMASK;
 			    term->curr_attr |= colour;
 			    term->default_attr &= ~ATTR_BGMASK;
@@ -4771,6 +4779,7 @@ static void term_out(Terminal *term)
 		    /* compatibility(OTHER) */
 		    term->vt52_bold = FALSE;
 		    term->curr_attr = ATTR_DEFAULT;
+		    term->curr_colourinfo = COLINFO_DEFAULT;
 		    set_erase_char(term);
 		    break;
 		  case 'S':
@@ -4806,6 +4815,7 @@ static void term_out(Terminal *term)
 #ifdef VT52_PLUS
 	      case VT52_FG:
 		term->termstate = TOPLEVEL;
+		term->curr_colourinfo.tf = 0;
 		term->curr_attr &= ~ATTR_FGMASK;
 		term->curr_attr &= ~ATTR_BOLD;
 		term->curr_attr |= (c & 0xF) << ATTR_FGSHIFT;
@@ -4813,6 +4823,7 @@ static void term_out(Terminal *term)
 		break;
 	      case VT52_BG:
 		term->termstate = TOPLEVEL;
+		term->curr_colourinfo.tb = 0;
 		term->curr_attr &= ~ATTR_BGMASK;
 		term->curr_attr &= ~ATTR_BLINK;
 		term->curr_attr |= (c & 0xF) << ATTR_BGSHIFT;
