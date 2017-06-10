@@ -73,6 +73,8 @@ const char sco2ansicolour[] = { 0, 4, 2, 6, 1, 5, 3, 7 };
 #define sel_nl_sz  (sizeof(sel_nl)/sizeof(wchar_t))
 const wchar_t sel_nl[] = SEL_NL;
 
+const static colinfo COLINFO_DEFAULT = {0};
+
 /*
  * Fetch the character at a particular position in a line array,
  * for purposes of `wordtype'. The reason this isn't just a simple
@@ -1701,17 +1703,8 @@ Terminal *term_init(Conf *myconf, struct unicode_data *ucsdata,
     /* FULL-TERMCHAR */
     term->basic_erase_char.chr = CSET_ASCII | ' ';
     term->basic_erase_char.attr = ATTR_DEFAULT;
+    term->basic_erase_char.colourinfo = COLINFO_DEFAULT;
     term->basic_erase_char.cc_next = 0;
-    colinfo unused_black;
-    unused_black.tb = 0;
-    unused_black.tf = 0;
-    unused_black.fr = 0;
-    unused_black.fg = 0;
-    unused_black.fb = 0;
-    unused_black.br = 0;
-    unused_black.bg = 0;
-    unused_black.bb = 0;
-    term->basic_erase_char.colourinfo = unused_black;
     term->erase_char = term->basic_erase_char;
 
     return term;
@@ -3868,7 +3861,7 @@ static void term_out(Terminal *term)
 				switch (def(term->esc_args[i], 0)) {
 				  case 0:	/* restore defaults */
 				    term->curr_attr = term->default_attr;
-				    term->curr_colourinfo = term->basic_erase_char.colourinfo;
+				    term->curr_colourinfo = COLINFO_DEFAULT;
 				    break;
 				  case 1:	/* enable bold */
 				    compatibility(VT100AVO);
