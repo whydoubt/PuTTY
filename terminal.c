@@ -5109,6 +5109,7 @@ static void do_paint(Terminal *term, Context ctx, int may_optimise)
 	termchar *lchars;
 	int dirty_line, dirty_run, selected;
 	unsigned long attr = 0, cset = 0;
+	colinfo colourinfo = COLINFO_DEFAULT;
 	int start = 0;
 	int ccount = 0;
 	int last_run_dirty = 0;
@@ -5133,18 +5134,17 @@ static void do_paint(Terminal *term, Context ctx, int may_optimise)
 	 */
 	for (j = 0; j < term->cols; j++) {
 	    unsigned long tattr, tchar;
-	    colinfo colourinfo;
+	    colinfo tcolourinfo;
 	    termchar *d = lchars + j;
 	    scrpos.x = backward ? backward[j] : j;
 
 	    tchar = d->chr;
 	    tattr = d->attr;
+	    tcolourinfo = d->colourinfo;
 
             if (!term->ansi_colour)
                 tattr = (tattr & ~(ATTR_FGMASK | ATTR_BGMASK)) | 
                 ATTR_DEFFG | ATTR_DEFBG;
-
-	    colourinfo = d->colourinfo;
 
 	    if (!term->xterm_256_colour) {
 		int colour;
@@ -5213,7 +5213,7 @@ static void do_paint(Terminal *term, Context ctx, int may_optimise)
 	    /* FULL-TERMCHAR */
 	    newline[j].attr = tattr;
 	    newline[j].chr = tchar;
-	    newline[j].colourinfo = colourinfo;
+	    newline[j].colourinfo = tcolourinfo;
 	    /* Combining characters are still read from lchars */
 	    newline[j].cc_next = 0;
 	}
@@ -5264,14 +5264,15 @@ static void do_paint(Terminal *term, Context ctx, int may_optimise)
 				  term->disptext[i]->lattr);
 	term->disptext[i]->lattr = ldata->lattr;
 
-	colinfo colourinfo = term->erase_char.colourinfo;
 	for (j = 0; j < term->cols; j++) {
 	    unsigned long tattr, tchar;
+	    colinfo tcolourinfo;
 	    int break_run, do_copy;
 	    termchar *d = lchars + j;
 
 	    tattr = newline[j].attr;
 	    tchar = newline[j].chr;
+	    tcolourinfo = newline[j].colourinfo;
 
 	    if ((term->disptext[i]->chars[j].attr ^ tattr) & ATTR_WIDE)
 		dirty_line = TRUE;
@@ -5329,7 +5330,7 @@ static void do_paint(Terminal *term, Context ctx, int may_optimise)
 		start = j;
 		ccount = 0;
 		attr = tattr;
-		colourinfo = newline[j].colourinfo;
+		colourinfo = tcolourinfo;
 		cset = CSET_OF(tchar);
 		if (term->ucsdata->dbcs_screenfont)
 		    last_run_dirty = dirty_run;
@@ -5398,7 +5399,7 @@ static void do_paint(Terminal *term, Context ctx, int may_optimise)
 		copy_termchar(term->disptext[i], j, d);
 		term->disptext[i]->chars[j].chr = tchar;
 		term->disptext[i]->chars[j].attr = tattr;
-		term->disptext[i]->chars[j].colourinfo = colourinfo;
+		term->disptext[i]->chars[j].colourinfo = tcolourinfo;
 
 		if (start == j)
 		    term->disptext[i]->chars[j].attr |= DATTR_STARTRUN;
