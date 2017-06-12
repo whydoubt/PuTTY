@@ -81,7 +81,7 @@ Context get_ctx(void *frontend) {
 void free_ctx(Context ctx) { }
 void palette_set(void *frontend, int a, int b, int c, int d) { }
 void palette_reset(void *frontend) { }
-void write_clip(void *frontend, wchar_t *a, int *b, int c, int d) { }
+void write_clip(void *frontend, wchar_t *a, int *b, colinfo *c, int d, int e) { }
 void get_clip(void *frontend, wchar_t **w, int *i) { }
 void set_raw_mouse_mode(void *frontend, int m) { }
 void request_paste(void *frontend) { }
