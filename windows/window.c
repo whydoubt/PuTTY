@@ -24,6 +24,7 @@
 #include "storage.h"
 #include "win_res.h"
 #include "winsecur.h"
+#include "tree234.h"
 
 #ifndef NO_MULTIMON
 #include <multimon.h>
@@ -4973,6 +4974,18 @@ void write_aclip(void *frontend, char *data, int len, int must_deselect)
 	SendMessage(hwnd, WM_IGNORE_CLIP, FALSE, 0);
 }
 
+typedef struct _rgbindex {
+    int index;
+    COLORREF ref;
+} rgbindex;
+
+int cmpCOLORREF(void *va, void *vb)
+{
+    COLORREF a = ((rgbindex *)va)->ref;
+    COLORREF b = ((rgbindex *)vb)->ref;
+    return (a < b) ? -1 : (a > b) ? +1 : 0;
+}
+
 /*
  * Note: unlike write_aclip() this will not append a nul.
  */
@@ -5020,12 +5033,15 @@ void write_clip(void *frontend, wchar_t * data, int *attr, colinfo *colourinfo,
 	int rtfsize = 0;
 	int multilen, blen, alen, totallen, i;
 	char before[16], after[4];
-	int fgcolour,  lastfgcolour  = 0;
-	int bgcolour,  lastbgcolour  = 0;
+	int fgcolour,  lastfgcolour  = -1;
+	int bgcolour,  lastbgcolour  = -1;
+	COLORREF fg,   lastfg = -1;
+	COLORREF bg,   lastbg = -1;
 	int attrBold,  lastAttrBold  = 0;
 	int attrUnder, lastAttrUnder = 0;
 	int palette[NALLCOLOURS];
 	int numcolours;
+	tree234 *rgbtree = NULL;
 	FontSpec *font = conf_get_fontspec(conf, CONF_font);
 
 	get_unitab(CP_ACP, unitab, 0);
@@ -5050,28 +5066,51 @@ void write_clip(void *frontend, wchar_t * data, int *attr, colinfo *colourinfo,
 		fgcolour = ((attr[i] & ATTR_FGMASK) >> ATTR_FGSHIFT);
 		bgcolour = ((attr[i] & ATTR_BGMASK) >> ATTR_BGSHIFT);
 
+		if (colourinfo && colourinfo[i].tf != 0) fgcolour = -1;
+		if (colourinfo && colourinfo[i].tb != 0) bgcolour = -1;
+
 		if (attr[i] & ATTR_REVERSE) {
 		    int tmpcolour = fgcolour;	/* Swap foreground and background */
 		    fgcolour = bgcolour;
 		    bgcolour = tmpcolour;
 		}
 
-		if (bold_colours && (attr[i] & ATTR_BOLD)) {
+		if (bold_colours && (attr[i] & ATTR_BOLD) && (fgcolour >= 0)) {
 		    if (fgcolour  <   8)	/* ANSI colours */
 			fgcolour +=   8;
 		    else if (fgcolour >= 256)	/* Default colours */
 			fgcolour ++;
 		}
 
-		if (attr[i] & ATTR_BLINK) {
+		if ((attr[i] & ATTR_BLINK) && (bgcolour >= 0)) {
 		    if (bgcolour  <   8)	/* ANSI colours */
 			bgcolour +=   8;
     		    else if (bgcolour >= 256)	/* Default colours */
 			bgcolour ++;
 		}
 
-		palette[fgcolour]++;
-		palette[bgcolour]++;
+		if (fgcolour >= 0)
+		    palette[fgcolour]++;
+		if (bgcolour >= 0)
+		    palette[bgcolour]++;
+	    }
+
+	    if (colourinfo) {
+		rgbtree = newtree234(cmpCOLORREF);
+		for (i = 0; i < (len-1); i++) {
+		    if (colourinfo[i].tf) {
+			rgbindex *rgbp = snew(rgbindex);
+			rgbp->ref = RGB(colourinfo[i].fr, colourinfo[i].fg, colourinfo[i].fb);
+			if (add234(rgbtree, rgbp) != rgbp)
+			    sfree(rgbp);
+		    }
+		    if (colourinfo[i].tb) {
+			rgbindex *rgbp = snew(rgbindex);
+			rgbp->ref = RGB(colourinfo[i].br, colourinfo[i].bg, colourinfo[i].bb);
+			if (add234(rgbtree, rgbp) != rgbp)
+			    sfree(rgbp);
+		    }
+		}
 	    }
 
 	    /*
@@ -5081,6 +5120,12 @@ void write_clip(void *frontend, wchar_t * data, int *attr, colinfo *colourinfo,
 	    for (i = 0; i < NALLCOLOURS; i++) {
 		if (palette[i] != 0)
 		    palette[i]  = ++numcolours;
+	    }
+
+	    if (rgbtree) {
+		rgbindex *rgbp;
+		for (i = 0; (rgbp = index234(rgbtree, i)) != NULL; i++)
+		    rgbp->index = ++numcolours;
 	    }
 
 	    /*
@@ -5094,6 +5139,12 @@ void write_clip(void *frontend, wchar_t * data, int *attr, colinfo *colourinfo,
 		if (palette[i] != 0) {
 		    rtflen += sprintf(&rtf[rtflen], "\\red%d\\green%d\\blue%d;", defpal[i].rgbtRed, defpal[i].rgbtGreen, defpal[i].rgbtBlue);
 		}
+	    }
+	    if (rgbtree) {
+		rgbindex *rgbp;
+		for (i = 0; (rgbp = index234(rgbtree, i)) != NULL; i++)
+		    rtflen += sprintf(&rtf[rtflen], "\\red%d\\green%d\\blue%d;",
+				      GetRValue(rgbp->ref), GetGValue(rgbp->ref), GetBValue(rgbp->ref));
 	    }
 	    strcpy(&rtf[rtflen], "}");
 	    rtflen ++;
@@ -5138,23 +5189,40 @@ void write_clip(void *frontend, wchar_t * data, int *attr, colinfo *colourinfo,
                 /*
                  * Determine foreground and background colours
                  */
-                fgcolour = ((attr[tindex] & ATTR_FGMASK) >> ATTR_FGSHIFT);
-                bgcolour = ((attr[tindex] & ATTR_BGMASK) >> ATTR_BGSHIFT);
+		if (colourinfo && colourinfo[tindex].tf != 0) {
+		    fgcolour = -1;
+		    fg = RGB(colourinfo[tindex].fr, colourinfo[tindex].fg, colourinfo[tindex].fb);
+		} else {
+		    fgcolour = ((attr[tindex] & ATTR_FGMASK) >> ATTR_FGSHIFT);
+		    fg = -1;
+		}
+
+		if (colourinfo && colourinfo[tindex].tb != 0) {
+		    bgcolour = -1;
+		    bg = RGB(colourinfo[tindex].br, colourinfo[tindex].bg, colourinfo[tindex].bb);
+		} else {
+		    bgcolour = ((attr[tindex] & ATTR_BGMASK) >> ATTR_BGSHIFT);
+		    bg = -1;
+		}
 
 		if (attr[tindex] & ATTR_REVERSE) {
 		    int tmpcolour = fgcolour;	    /* Swap foreground and background */
 		    fgcolour = bgcolour;
 		    bgcolour = tmpcolour;
+
+		    COLORREF tmpref = fg;
+		    fg = bg;
+		    bg = tmpref;
 		}
 
-		if (bold_colours && (attr[tindex] & ATTR_BOLD)) {
+		if (bold_colours && (attr[tindex] & ATTR_BOLD) && (fgcolour >= 0)) {
 		    if (fgcolour  <   8)	    /* ANSI colours */
 			fgcolour +=   8;
 		    else if (fgcolour >= 256)	    /* Default colours */
 			fgcolour ++;
                 }
 
-		if (attr[tindex] & ATTR_BLINK) {
+		if ((attr[tindex] & ATTR_BLINK) && (bgcolour >= 0)) {
 		    if (bgcolour  <   8)	    /* ANSI colours */
 			bgcolour +=   8;
 		    else if (bgcolour >= 256)	    /* Default colours */
@@ -5193,15 +5261,33 @@ void write_clip(void *frontend, wchar_t * data, int *attr, colinfo *colourinfo,
                 /*
                  * Write RTF text attributes
                  */
-		if (lastfgcolour != fgcolour) {
-                    lastfgcolour  = fgcolour;
-		    rtflen       += sprintf(&rtf[rtflen], "\\cf%d ", (fgcolour >= 0) ? palette[fgcolour] : 0);
-                }
+		if ((lastfgcolour != fgcolour) || (lastfg != fg)) {
+		    lastfgcolour  = fgcolour;
+		    lastfg        = fg;
+		    if (fg == -1)
+			rtflen += sprintf(&rtf[rtflen], "\\cf%d ",
+					  (fgcolour >= 0) ? palette[fgcolour] : 0);
+		    else {
+			rgbindex rgb, *rgbp;
+			rgb.ref = fg;
+			if ((rgbp = find234(rgbtree, &rgb, NULL)) != NULL)
+			    rtflen += sprintf(&rtf[rtflen], "\\cf%d ", rgbp->index);
+		    }
+		}
 
-                if (lastbgcolour != bgcolour) {
-                    lastbgcolour  = bgcolour;
-                    rtflen       += sprintf(&rtf[rtflen], "\\highlight%d ", (bgcolour >= 0) ? palette[bgcolour] : 0);
-                }
+		if ((lastbgcolour != bgcolour) || (lastbg != bg)) {
+		    lastbgcolour  = bgcolour;
+		    lastbg        = bg;
+		    if (bg == -1)
+			rtflen += sprintf(&rtf[rtflen], "\\highlight%d ",
+					  (bgcolour >= 0) ? palette[bgcolour] : 0);
+		    else {
+			rgbindex rgb, *rgbp;
+			rgb.ref = bg;
+			if ((rgbp = find234(rgbtree, &rgb, NULL)) != NULL)
+			    rtflen += sprintf(&rtf[rtflen], "\\highlight%d ", rgbp->index);
+		    }
+		}
 
 		if (lastAttrBold != attrBold) {
 		    lastAttrBold  = attrBold;
@@ -5282,6 +5368,13 @@ void write_clip(void *frontend, wchar_t * data, int *attr, colinfo *colourinfo,
 	    GlobalUnlock(clipdata3);
 	}
 	sfree(rtf);
+
+	if (rgbtree) {
+	    rgbindex *rgbp;
+	    while ((rgbp = delpos234(rgbtree, 0)) != NULL)
+		sfree(rgbp);
+	    freetree234(rgbtree);
+	}
     } else
 	clipdata3 = NULL;
 
