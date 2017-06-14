@@ -2349,7 +2349,7 @@ static void clipboard_clear(GtkClipboard *clipboard, gpointer data)
     sfree(cdi);
 }
 
-void write_clip(void *frontend, wchar_t *data, int *attr, int len,
+void write_clip(void *frontend, wchar_t *data, int *attr, int *fgbg, int len,
                 int must_deselect)
 {
     struct gui_data *inst = (struct gui_data *)frontend;
@@ -2477,7 +2477,7 @@ static char *retrieve_cutbuffer(int *nbytes)
 #endif
 }
 
-void write_clip(void *frontend, wchar_t *data, int *attr, int len,
+void write_clip(void *frontend, wchar_t *data, int *attr, int *fgbg, int len,
                 int must_deselect)
 {
     struct gui_data *inst = (struct gui_data *)frontend;

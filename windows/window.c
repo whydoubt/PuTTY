@@ -4967,7 +4967,7 @@ void write_aclip(void *frontend, char *data, int len, int must_deselect)
 /*
  * Note: unlike write_aclip() this will not append a nul.
  */
-void write_clip(void *frontend, wchar_t * data, int *attr, int len, int must_deselect)
+void write_clip(void *frontend, wchar_t * data, int *attr, int *fgbg, int len, int must_deselect)
 {
     HGLOBAL clipdata, clipdata2, clipdata3;
     int len2;

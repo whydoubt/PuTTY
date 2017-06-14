@@ -5726,9 +5726,11 @@ typedef struct {
     wchar_t *textptr;	    /* = textbuf + bufpos (current insertion point) */
     int *attrbuf;	    /* buffer for copied attributes */
     int *attrptr;	    /* = attrbuf + bufpos */
+    int *fgbgbuf;	    /* buffer for copied attributes */
+    int *fgbgptr;	    /* = fgbgbuf + bufpos */
 } clip_workbuf;
 
-static void clip_addchar(clip_workbuf *b, wchar_t chr, int attr)
+static void clip_addchar(clip_workbuf *b, wchar_t chr, int attr, int fg, int bg)
 {
     if (b->bufpos >= b->buflen) {
 	b->buflen *= 2;
@@ -5736,9 +5738,17 @@ static void clip_addchar(clip_workbuf *b, wchar_t chr, int attr)
 	b->textptr = b->textbuf + b->bufpos;
 	b->attrbuf = sresize(b->attrbuf, b->buflen, int);
 	b->attrptr = b->attrbuf + b->bufpos;
+#ifndef COMBI_COLOUR
+	b->fgbgbuf = sresize(b->fgbgbuf, b->buflen * 2, int);
+	b->fgbgptr = b->fgbgbuf + b->bufpos * 2;
+#endif
     }
     *b->textptr++ = chr;
     *b->attrptr++ = attr;
+#ifndef COMBI_COLOUR
+    *b->fgbgptr++ = fg;
+    *b->fgbgptr++ = bg;
+#endif
     b->bufpos++;
 }
 
@@ -5747,11 +5757,17 @@ static void clipme(Terminal *term, pos top, pos bottom, int rect, int desel)
     clip_workbuf buf;
     int old_top_x;
     int attr;
+    int fg, bg;
 
     buf.buflen = 5120;			
     buf.bufpos = 0;
     buf.textptr = buf.textbuf = snewn(buf.buflen, wchar_t);
     buf.attrptr = buf.attrbuf = snewn(buf.buflen, int);
+#ifndef COMBI_COLOUR
+    buf.fgbgptr = buf.fgbgbuf = snewn(buf.buflen * 2, int);
+#else
+    buf.fgbgptr = buf.fgbgbuf = NULL;
+#endif
 
     old_top_x = top.x;		       /* needed for rect==1 */
 
@@ -5817,6 +5833,10 @@ static void clipme(Terminal *term, pos top, pos bottom, int rect, int desel)
 	    while (1) {
 		int uc = ldata->chars[x].chr;
                 attr = ldata->chars[x].attr;
+#ifndef COMBI_COLOUR
+                fg = ldata->chars[x].fg_colour;
+                bg = ldata->chars[x].bg_colour;
+#endif
 
 		switch (uc & CSET_MASK) {
 		  case CSET_LINEDRW:
@@ -5877,7 +5897,7 @@ static void clipme(Terminal *term, pos top, pos bottom, int rect, int desel)
 #endif
 
 		for (p = cbuf; *p; p++)
-		    clip_addchar(&buf, *p, attr);
+		    clip_addchar(&buf, *p, attr, fg, bg);
 
 		if (ldata->chars[x].cc_next)
 		    x += ldata->chars[x].cc_next;
@@ -5889,7 +5909,7 @@ static void clipme(Terminal *term, pos top, pos bottom, int rect, int desel)
 	if (nl) {
 	    int i;
 	    for (i = 0; i < sel_nl_sz; i++)
-		clip_addchar(&buf, sel_nl[i], 0);
+		clip_addchar(&buf, sel_nl[i], 0, 0, 0);
 	}
 	top.y++;
 	top.x = rect ? old_top_x : 0;
@@ -5897,12 +5917,15 @@ static void clipme(Terminal *term, pos top, pos bottom, int rect, int desel)
 	unlineptr(ldata);
     }
 #if SELECTION_NUL_TERMINATED
-    clip_addchar(&buf, 0, 0);
+    clip_addchar(&buf, 0, 0, 0, 0);
 #endif
     /* Finally, transfer all that to the clipboard. */
-    write_clip(term->frontend, buf.textbuf, buf.attrbuf, buf.bufpos, desel);
+    write_clip(term->frontend, buf.textbuf, buf.attrbuf, buf.fgbgbuf, buf.bufpos, desel);
     sfree(buf.textbuf);
     sfree(buf.attrbuf);
+#ifndef COMBI_COLOUR
+    sfree(buf.fgbgbuf);
+#endif
 }
 
 void term_copyall(Terminal *term)
