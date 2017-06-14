@@ -4906,6 +4906,7 @@ static void term_out(Terminal *term)
 		    /* compatibility(OTHER) */
 		    term->vt52_bold = FALSE;
 		    term->curr_attr = ATTR_DEFAULT;
+		    term->fg_colour = term->bg_colour = 0;
 		    set_erase_char(term);
 		    break;
 		  case 'S':
